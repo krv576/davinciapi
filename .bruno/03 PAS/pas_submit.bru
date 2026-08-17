@@ -1,0 +1,24 @@
+{
+  "name": "Submit Prior Authorization (Claim/$submit)",
+  "type": "request",
+  "request": {
+    "method": "POST",
+    "url": "{{PAS_BASE}}/Claim/$submit",
+    "headers": { "Content-Type": "application/fhir+json", "Authorization": "Bearer {{JWT}}" },
+    "body": {
+      "resourceType":"Claim",
+      "id":"claim-{{timestamp}}",
+      "status":"active",
+      "type":{"coding":[{"system":"http://terminology.hl7.org/CodeSystem/claim-type","code":"professional"}]},
+      "subject":{"reference":"Patient/1"},
+      "created":"2026-08-16",
+      "item":[{"sequence":1,"productOrService":{"coding":[{"system":"http://snomed.info/sct","code":"123456","display":"Example procedure"}]}}]
+    }
+  },
+  "tests": [
+    { "assert": "status == 200 || status == 201" }
+  ],
+  "extract": {
+    "PA_EXTERNAL_ID": "response.externalId || response.id || null"
+  }
+}

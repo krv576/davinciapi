@@ -1,0 +1,12 @@
+{
+  "name": "Smoke: submit PA, call CRD, DTR flow, check status",
+  "type": "sequence",
+  "steps": [
+    "03 PAS/pas_submit.bru",
+    "01 CRD/crd_invoke.bru",
+    "02 DTR/dtr_get_package.bru",
+    "02 DTR/dtr_submit_response.bru",
+    "03 PAS/pas_inquire.bru",
+    "03 PAS/pas_status.bru"
+  ]
+}

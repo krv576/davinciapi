@@ -1,0 +1,14 @@
+{
+  "name": "davinci-bruno",
+  "description": "Bruno test manifest for Davinci ePA local validation",
+  "environments": ["environments/local.bru", "environments/dev.bru", "environments/qa.bru"],
+  "suites": [
+    { "name": "00 Authentication", "path": "00 Authentication" },
+    { "name": "01 CRD", "path": "01 CRD" },
+    { "name": "02 DTR", "path": "02 DTR" },
+    { "name": "03 PAS", "path": "03 PAS" },
+    { "name": "04 FHIR", "path": "04 FHIR" },
+    { "name": "05 Negative Tests", "path": "05 Negative Tests" },
+    { "name": "06 Regression", "path": "06 Regression" }
+  ]
+}

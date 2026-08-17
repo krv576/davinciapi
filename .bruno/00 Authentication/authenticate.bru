@@ -1,0 +1,17 @@
+{
+  "name": "Get dev JWT (client-credentials or static)",
+  "type": "request",
+  "request": {
+    "method": "POST",
+    "url": "{{PAS_BASE}}/local/auth/token",
+    "headers": { "Content-Type": "application/json" },
+    "body": { "grant_type": "client_credentials", "client_id": "<id>", "client_secret": "<secret>", "scope": "api" }
+  },
+  "extract": {
+    "JWT": "response.access_token"
+  },
+  "tests": [
+    { "assert": "status == 200" },
+    { "assert": "response.access_token != null" }
+  ]
+}

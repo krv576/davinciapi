@@ -1,0 +1,19 @@
+{
+  "name": "Submit QuestionnaireResponse",
+  "type": "request",
+  "request": {
+    "method": "POST",
+    "url": "{{DTR_BASE}}/documentation-requirements/{{DTR_ID}}/questionnaire-response",
+    "headers": { "Content-Type": "application/fhir+json", "Authorization": "Bearer {{JWT}}" },
+    "body": {
+      "resourceType":"QuestionnaireResponse",
+      "id":"qr-{{timestamp}}",
+      "status":"completed",
+      "questionnaire":"Questionnaire/example",
+      "subject":{"reference":"Patient/1"},
+      "authored":"2026-08-16T12:00:00Z",
+      "item":[{"linkId":"1","text":"Clinical question","answer":[{"valueString":"Example answer"}]}]
+    }
+  },
+  "tests": [{ "assert": "status == 200" }]
+}

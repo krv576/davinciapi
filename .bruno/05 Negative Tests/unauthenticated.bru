@@ -1,0 +1,11 @@
+{
+  "name": "Unauthenticated requests return 401",
+  "type": "request",
+  "request": {
+    "method": "POST",
+    "url": "{{PAS_BASE}}/Claim/$submit",
+    "headers": { "Content-Type": "application/fhir+json" },
+    "body": { "resourceType":"Claim","id":"claim-neg-{{timestamp}}" }
+  },
+  "tests": [{ "assert": "status == 401" }]
+}

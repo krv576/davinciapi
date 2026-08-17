@@ -1,0 +1,275 @@
+{
+  "info": {
+    "name": "DavinciEPA - Local Test Collection",
+    "description": "Postman collection for CRD, DTR, PAS endpoints (local testing). Set environment variables: CRD_BASE, DTR_BASE, PAS_BASE, JWT, DTR_ID, pa_externalId.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "davinciepa-local-collection"
+  },
+  "item": [
+    {
+      "name": "CRD",
+      "item": [
+        {
+          "name": "GET cds-services",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{JWT}}" }
+            ],
+            "url": {
+              "raw": "{{CRD_BASE}}/cds-services",
+              "host": ["{{CRD_BASE}}"],
+              "path": ["cds-services"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('CRD GET returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('CRD returns array', () => { try { const j = pm.response.json(); pm.expect(j).to.be.an('array'); } catch(e) {} });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST cds-services/{id} (invoke)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{JWT}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"hook\": \"order-sign\",\n  \"hookInstance\": \"order-{{$guid}}\",\n  \"fhirServer\": \"{{PAS_BASE}}\",\n  \"fhirAuthorizationToken\": \"Bearer {{JWT}}\",\n  \"context\": { \"patientId\": \"Patient/1\", \"userId\": \"Practitioner/1\", \"encounterId\": \"Encounter/1\" },\n  \"prefetch\": {}\n}"
+            },
+            "url": {
+              "raw": "{{CRD_BASE}}/cds-services/{{CRD_SERVICE_ID}}",
+              "host": ["{{CRD_BASE}}"],
+              "path": ["cds-services","{{CRD_SERVICE_ID}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('CRD POST returns 200', () => pm.response.to.have.status(200));",
+                  "try { const j = pm.response.json(); if (j.cards && j.cards[0] && j.cards[0].links && j.cards[0].links[0]) pm.environment.set('crd_launch_link', j.cards[0].links[0].url); } catch(e) {}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "DTR",
+      "item": [
+        {
+          "name": "GET questionnaire-package",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{JWT}}" }
+            ],
+            "url": {
+              "raw": "{{DTR_BASE}}/documentation-requirements/{{DTR_ID}}/questionnaire-package",
+              "host": ["{{DTR_BASE}}"],
+              "path": ["documentation-requirements","{{DTR_ID}}","questionnaire-package"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('DTR GET package returns 200', () => pm.response.to.have.status(200));",
+                  "pm.test('DTR returns Bundle or package', () => { try { const j = pm.response.json(); pm.expect(j.resourceType || j.type).to.exist; } catch(e) {} });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST questionnaire-response",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/fhir+json" },
+              { "key": "Authorization", "value": "Bearer {{JWT}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resourceType\": \"QuestionnaireResponse\",\n  \"id\": \"qr-{{$guid}}\",\n  \"status\": \"completed\",\n  \"questionnaire\": \"Questionnaire/example\",\n  \"subject\": { \"reference\": \"Patient/1\" },\n  \"authored\": \"2026-08-16T12:00:00Z\",\n  \"item\": [ { \"linkId\": \"1\", \"text\": \"Clinical question\", \"answer\": [ { \"valueString\": \"Example answer\" } ] } ]\n}"
+            },
+            "url": {
+              "raw": "{{DTR_BASE}}/documentation-requirements/{{DTR_ID}}/questionnaire-response",
+              "host": ["{{DTR_BASE}}"],
+              "path": ["documentation-requirements","{{DTR_ID}}","questionnaire-response"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('QuestionnaireResponse accepted', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "SMART launch (example)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{DTR_BASE}}/smart/launch",
+              "host": ["{{DTR_BASE}}"],
+              "path": ["smart","launch"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "PAS",
+      "item": [
+        {
+          "name": "POST Claim/$submit",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/fhir+json" },
+              { "key": "Authorization", "value": "Bearer {{JWT}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resourceType\": \"Claim\",\n  \"id\": \"claim-{{$guid}}\",\n  \"status\": \"active\",\n  \"type\": { \"coding\": [ { \"system\": \"http://terminology.hl7.org/CodeSystem/claim-type\", \"code\": \"professional\" } ] },\n  \"subject\": { \"reference\": \"Patient/1\" },\n  \"created\": \"2026-08-16\",\n  \"item\": [ { \"sequence\": 1, \"productOrService\": { \"coding\": [ { \"system\": \"http://snomed.info/sct\", \"code\": \"123456\", \"display\": \"Example procedure\" } ] } } ]\n}"
+            },
+            "url": {
+              "raw": "{{PAS_BASE}}/Claim/$submit",
+              "host": ["{{PAS_BASE}}"],
+              "path": ["Claim","$submit"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('PAS submit returns 200 or 201', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                  "try { const json = pm.response.json(); if (json.externalId) pm.environment.set('pa_externalId', json.externalId); if (json.id) pm.environment.set('pa_externalId', json.id); } catch(e) {}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET Claim/{{pa_externalId}}/$inquire",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{JWT}}" }
+            ],
+            "url": {
+              "raw": "{{PAS_BASE}}/Claim/{{pa_externalId}}/$inquire",
+              "host": ["{{PAS_BASE}}"],
+              "path": ["Claim","{{pa_externalId}}","$inquire"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('PAS inquire returns 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET Claim/{{pa_externalId}}/status",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{JWT}}" }
+            ],
+            "url": {
+              "raw": "{{PAS_BASE}}/Claim/{{pa_externalId}}/status",
+              "host": ["{{PAS_BASE}}"],
+              "path": ["Claim","{{pa_externalId}}","status"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('PAS status returns 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "FHIR",
+      "item": [
+        {
+          "name": "POST /fhir/validate (example)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/fhir+json" },
+              { "key": "Authorization", "value": "Bearer {{JWT}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resource\": { \"resourceType\": \"Claim\", \"id\": \"claim-{{$guid}}\", \"status\": \"active\" }\n}"
+            },
+            "url": {
+              "raw": "{{PAS_BASE}}/fhir/validate",
+              "host": ["{{PAS_BASE}}"],
+              "path": ["fhir","validate"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('FHIR validate returns 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    { "key": "CRD_BASE", "value": "http://localhost:5101" },
+    { "key": "DTR_BASE", "value": "http://localhost:5201" },
+    { "key": "PAS_BASE", "value": "http://localhost:5301" },
+    { "key": "JWT", "value": "" },
+    { "key": "CRD_SERVICE_ID", "value": "prior-auth-coverage-requirements" },
+    { "key": "DTR_ID", "value": "example" },
+    { "key": "pa_externalId", "value": "" }
+  ]
+}

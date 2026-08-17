@@ -1,0 +1,24 @@
+{
+  "name": "Invoke CDS Service - prior-auth-coverage-requirements",
+  "type": "request",
+  "request": {
+    "method": "POST",
+    "url": "{{CRD_BASE}}/cds-services/prior-auth-coverage-requirements",
+    "headers": { "Content-Type": "application/json", "Authorization": "Bearer {{JWT}}" },
+    "body": {
+      "hook":"order-sign",
+      "hookInstance":"order-{{timestamp}}",
+      "fhirServer":"{{PAS_BASE}}",
+      "fhirAuthorizationToken":"Bearer {{JWT}}",
+      "context":{"patientId":"Patient/1","userId":"Practitioner/1","encounterId":"Encounter/1"},
+      "prefetch":{}
+    }
+  },
+  "tests": [
+    { "assert": "status == 200" },
+    { "assert": "response.cards is array" }
+  ],
+  "extract": {
+    "crd_launch_link": "response.cards[0].links[0].url"
+  }
+}

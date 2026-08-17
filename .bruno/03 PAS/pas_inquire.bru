@@ -1,0 +1,10 @@
+{
+  "name": "Inquire Prior Authorization",
+  "type": "request",
+  "request": {
+    "method": "GET",
+    "url": "{{PAS_BASE}}/Claim/{{PA_EXTERNAL_ID}}/$inquire",
+    "headers": { "Authorization": "Bearer {{JWT}}" }
+  },
+  "tests": [{ "assert": "status == 200" }]
+}

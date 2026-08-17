@@ -1,0 +1,13 @@
+{
+  "name": "Get Questionnaire Package",
+  "type": "request",
+  "request": {
+    "method": "GET",
+    "url": "{{DTR_BASE}}/documentation-requirements/{{DTR_ID}}/questionnaire-package",
+    "headers": { "Authorization": "Bearer {{JWT}}" }
+  },
+  "tests": [
+    { "assert": "status == 200" },
+    { "assert": "response.resourceType == 'Bundle' || response.type != null" }
+  ]
+}

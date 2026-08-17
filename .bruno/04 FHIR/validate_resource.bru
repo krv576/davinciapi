@@ -1,0 +1,11 @@
+{
+  "name": "Validate FHIR Resource (Claim example)",
+  "type": "request",
+  "request": {
+    "method": "POST",
+    "url": "{{PAS_BASE}}/fhir/validate",
+    "headers": { "Content-Type": "application/fhir+json", "Authorization": "Bearer {{JWT}}" },
+    "body": { "resource": { "resourceType":"Claim", "id":"claim-{{timestamp}}", "status":"active" } }
+  },
+  "tests": [{ "assert": "status == 200" }]
+}

@@ -1,0 +1,6 @@
+@DavinciEPA.CRD.Api_HostAddress = http://localhost:5181
+
+GET {{DavinciEPA.CRD.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
