@@ -16,6 +16,10 @@ using DavinciEPA.Security.Authorization;
 using DavinciEPA.Security.Extensions;
 using DavinciEPA.Security.SmartOnFhir;
 using DavinciEPA.Shared.Middleware;
+using System.Text.Json;
+using Microsoft.OpenApi.Any;
+using Microsoft.OpenApi.Models;
+using DavinciEPA.Core.Constants;
 using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -155,13 +159,25 @@ documentationGroup.MapGet("/{id:guid}/questionnaire-package", async (
 
 documentationGroup.MapPost("/{id:guid}/questionnaire-response", async (
     Guid id,
-    QuestionnaireResponseSubmission body,
+    JsonElement questionnaireResponseJsonElement,
     QuestionnaireResponseExtractor referenceExtractor,
     IDocumentationRequirementService documentationService,
     CancellationToken cancellationToken) =>
 {
-    var reference = referenceExtractor.ExtractReference(body.QuestionnaireResponseJson);
-    var submitDto = new SubmitQuestionnaireResponseDto(id, reference, body.QuestionnaireResponseJson);
+    var questionnaireResponseJson = questionnaireResponseJsonElement.GetRawText();
+
+    string reference;
+    try
+    {
+        reference = referenceExtractor.ExtractReference(questionnaireResponseJson);
+    }
+    catch (Exception)
+    {
+        // Parsing failed — return a controlled 422 instead of allowing a 500
+        return Results.UnprocessableEntity(new { message = "QuestionnaireResponse could not be parsed as valid FHIR JSON." });
+    }
+
+    var submitDto = new SubmitQuestionnaireResponseDto(id, reference, questionnaireResponseJson);
 
     var result = await documentationService.SubmitResponseAsync(submitDto, cancellationToken);
 
@@ -176,12 +192,47 @@ documentationGroup.MapPost("/{id:guid}/questionnaire-response", async (
 })
 //.RequireAuthorization(PolicyNames.SmartLaunch)
 .WithName("SubmitQuestionnaireResponse")
-.WithOpenApi();
+.WithOpenApi(operation =>
+{
+    var example = new OpenApiObject
+    {
+        ["resourceType"] = new OpenApiString("QuestionnaireResponse"),
+        ["id"] = new OpenApiString("example-qr-1"),
+        ["meta"] = new OpenApiObject
+        {
+            ["profile"] = new OpenApiArray { new OpenApiString(DaVinciProfiles.DtrQuestionnaireResponse) }
+        },
+        ["questionnaire"] = new OpenApiString("Questionnaire/advanced-imaging"),
+        ["status"] = new OpenApiString("completed"),
+        ["subject"] = new OpenApiObject { ["reference"] = new OpenApiString("Patient/1") },
+        ["authored"] = new OpenApiString(DateTimeOffset.UtcNow.ToString("o")),
+        ["item"] = new OpenApiArray
+        {
+            new OpenApiObject
+            {
+                ["linkId"] = new OpenApiString("1"),
+                ["answer"] = new OpenApiArray
+                {
+                    new OpenApiObject { ["valueString"] = new OpenApiString("example response") }
+                }
+            }
+        }
+    };
+
+    operation.RequestBody = new OpenApiRequestBody
+    {
+        Content =
+        {
+            ["application/json"] = new OpenApiMediaType { Example = example }
+        }
+    };
+
+    return operation;
+});
 
 app.Run();
 
-/// <summary>Request body for submitting a completed DTR QuestionnaireResponse.</summary>
-public sealed record QuestionnaireResponseSubmission(string QuestionnaireResponseJson);
+// The API now accepts raw JSON for QuestionnaireResponse (JsonElement) to avoid double-encoding.
 
 /// <summary>Entry point partial class exposed so <c>Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory</c> can bootstrap this API in integration tests.</summary>
 public partial class Program

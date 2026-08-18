@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace DavinciEPA.Core.DTOs;
 
 /// <summary>CDS Hooks discovery document entry describing one supported hook/service.</summary>
@@ -6,10 +8,23 @@ public sealed record CdsServiceDefinitionDto(
     string Hook,
     string Title,
     string Description,
-    CdsHooksPrefetchDto? Prefetch);
+    IReadOnlyDictionary<string, string>? Prefetch,
+    CdsHooksServiceExtensionDto? Extension = null);
 
-/// <summary>Prefetch template keyed by token, per the CDS Hooks specification.</summary>
-public sealed record CdsHooksPrefetchDto(IReadOnlyDictionary<string, string> Queries);
+/// <summary>CRD-defined <c>extension</c> object on a discovery service entry (IG §10.4).</summary>
+public sealed record CdsHooksServiceExtensionDto(
+    [property: JsonPropertyName("davinci-crd.configuration-options")]
+    IReadOnlyCollection<CdsHooksConfigurationOptionDto> ConfigurationOptions,
+    [property: JsonPropertyName("davinci-crd.version")]
+    IReadOnlyCollection<string>? Version = null);
+
+/// <summary>A single client-configurable option advertised for a CRD service (IG §10.4).</summary>
+public sealed record CdsHooksConfigurationOptionDto(
+    string Code,
+    string Type,
+    string Name,
+    string Description,
+    bool Default);
 
 /// <summary>Inbound CDS Hooks request payload for a single hook invocation.</summary>
 public sealed record CdsHooksRequestDto(
@@ -36,7 +51,10 @@ public sealed record CdsHooksCardDto(
     CdsHooksSourceDto Source,
     IReadOnlyCollection<CdsHooksLinkDto> Links);
 
-public sealed record CdsHooksSourceDto(string Label, string? Url);
+public sealed record CdsHooksSourceDto(string Label, string? Url, CdsHooksCodingDto Topic);
+
+/// <summary>Coding used for <c>Card.source.topic</c>, extensibly bound to the CRD Card Types ValueSet.</summary>
+public sealed record CdsHooksCodingDto(string System, string Code, string? Display);
 
 public sealed record CdsHooksLinkDto(string Label, string Url, string Type);
 

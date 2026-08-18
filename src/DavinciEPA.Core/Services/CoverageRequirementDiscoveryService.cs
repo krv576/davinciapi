@@ -23,6 +23,8 @@ public sealed class CoverageRequirementDiscoveryService : ICoverageRequirementDi
         _unitOfWork = unitOfWork;
     }
 
+    private const string FallbackQuestionnaireCanonicalUrl = "http://localhost:5027/fhir/Questionnaire/advanced-imaging";
+
     public async Task<Result<CoverageRequirementDiscoveryResultDto>> DiscoverAsync(
         CoverageRequirementDiscoveryRequestDto request,
         CancellationToken cancellationToken)
@@ -30,11 +32,35 @@ public sealed class CoverageRequirementDiscoveryService : ICoverageRequirementDi
         var results = await _ruleEngine.EvaluateAsync(request, cancellationToken);
         var evaluatedAt = DateTimeOffset.UtcNow;
 
+        // Lazily created once per request, and reused across every unmet requirement so all
+        // resulting records (evaluation, log, documentation requirement) share one aggregate.
+        PriorAuthorizationRequest? priorAuthorizationRequest = null;
+
         foreach (var result in results)
         {
+            Guid? priorAuthorizationRequestId = null;
+
+            if (!result.IsMet)
+            {
+                if (priorAuthorizationRequest is null)
+                {
+                    priorAuthorizationRequest = new PriorAuthorizationRequest(
+                        Guid.NewGuid(),
+                        request.OrderReference,
+                        request.PatientIdentifier,
+                        request.PayerId,
+                        request.OrderReference,
+                        evaluatedAt);
+
+                    await _unitOfWork.PriorAuthorizationRequests.AddAsync(priorAuthorizationRequest, cancellationToken);
+                }
+
+                priorAuthorizationRequestId = priorAuthorizationRequest.Id;
+            }
+
             var evaluation = new CoverageRequirementEvaluation(
                 Guid.NewGuid(),
-                priorAuthorizationRequestId: null,
+                priorAuthorizationRequestId,
                 request.OrderReference,
                 result.RequirementCode,
                 result.RequirementDescription,
@@ -43,9 +69,14 @@ public sealed class CoverageRequirementDiscoveryService : ICoverageRequirementDi
 
             await _unitOfWork.CoverageRequirements.AddAsync(evaluation, cancellationToken);
 
+            if (priorAuthorizationRequest is not null && priorAuthorizationRequestId is not null)
+            {
+                priorAuthorizationRequest.AddCoverageRequirement(evaluation);
+            }
+
             var log = new RuleEvaluationLog(
                 Guid.NewGuid(),
-                priorAuthorizationRequestId: null,
+                priorAuthorizationRequestId,
                 RuleEngineType.Coverage,
                 result.RequirementCode,
                 inputSummary: $"order={request.OrderReference};payer={request.PayerId}",
@@ -54,6 +85,27 @@ public sealed class CoverageRequirementDiscoveryService : ICoverageRequirementDi
                 evaluatedAt);
 
             await _unitOfWork.RuleEvaluationLogs.AddAsync(log, cancellationToken);
+
+            if (!result.IsMet && priorAuthorizationRequest is not null)
+            {
+                var questionnaireCanonicalUrl = result.DocumentationQuestionnaireCanonicalUrl ?? FallbackQuestionnaireCanonicalUrl;
+
+                // Reuse an existing requirement for the same questionnaire instead of duplicating it.
+                var documentationRequirement = priorAuthorizationRequest.DocumentationRequirements
+                    .FirstOrDefault(d => d.QuestionnaireCanonicalUrl == questionnaireCanonicalUrl);
+
+                if (documentationRequirement is null)
+                {
+                    documentationRequirement = new DocumentationRequirement(
+                        Guid.NewGuid(),
+                        priorAuthorizationRequest.Id,
+                        questionnaireCanonicalUrl,
+                        evaluatedAt);
+
+                    priorAuthorizationRequest.AddDocumentationRequirement(documentationRequirement);
+                    await _unitOfWork.DocumentationRequirements.AddAsync(documentationRequirement, cancellationToken);
+                }
+            }
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);

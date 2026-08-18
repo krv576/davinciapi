@@ -46,6 +46,18 @@ app.UseAuthorization();
 
 var cdsServices = app.MapGroup("/cds-services");
 
+var coverageInfoConfigurationExtension = new CdsHooksServiceExtensionDto(
+    new[]
+    {
+        new CdsHooksConfigurationOptionDto(
+            Code: "coverage-info",
+            Type: "boolean",
+            Name: "Coverage Information",
+            Description: "Information related to the patient's coverage, including whether a service is covered, requires prior authorization, or requires additional documentation.",
+            Default: true)
+    },
+    Version: new[] { "2.2" });
+
 cdsServices.MapGet("/", () => Results.Ok(new
 {
     services = new[]
@@ -55,21 +67,23 @@ cdsServices.MapGet("/", () => Results.Ok(new
             Hook: CdsHooksConstants.OrderSelectHook,
             Title: "Prior Authorization Coverage Requirements (Order Select)",
             Description: "Determines whether the order being selected requires prior authorization and identifies any supporting documentation needed.",
-            Prefetch: new CdsHooksPrefetchDto(new Dictionary<string, string>
+            Prefetch: new Dictionary<string, string>
             {
                 ["patient"] = "Patient/{{context.patientId}}",
                 ["coverage"] = "Coverage?patient={{context.patientId}}&status=active"
-            })),
+            },
+            Extension: coverageInfoConfigurationExtension),
         new CdsServiceDefinitionDto(
             Id: "prior-auth-coverage-requirements",
             Hook: CdsHooksConstants.OrderSignHook,
             Title: "Prior Authorization Coverage Requirements (Order Sign)",
             Description: "Re-confirms prior authorization and documentation requirements before the order is signed.",
-            Prefetch: new CdsHooksPrefetchDto(new Dictionary<string, string>
+            Prefetch: new Dictionary<string, string>
             {
                 ["patient"] = "Patient/{{context.patientId}}",
                 ["coverage"] = "Coverage?patient={{context.patientId}}&status=active"
-            }))
+            },
+            Extension: coverageInfoConfigurationExtension)
     }
 }))
 .WithName("GetCdsServices")
@@ -110,7 +124,10 @@ cdsServices.MapPost("/{id}", async (
             : $"Prior authorization required: {requirement.RequirementDescription}",
         Indicator: requirement.IsMet ? CdsHooksConstants.CardIndicatorInfo : CdsHooksConstants.CardIndicatorWarning,
         Detail: requirement.RequirementDescription,
-        Source: new CdsHooksSourceDto("DavinciEPA CRD Service", null),
+        Source: new CdsHooksSourceDto(
+            "DavinciEPA CRD Service",
+            null,
+            new CdsHooksCodingDto("http://hl7.org/fhir/us/davinci-crd/CodeSystem/temp", "coverage-info", "Coverage Information")),
         Links: requirement.DocumentationQuestionnaireCanonicalUrl is null
             ? Array.Empty<CdsHooksLinkDto>()
             : new[]
